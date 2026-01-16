@@ -19,8 +19,13 @@ export default function ActivityJar() {
   }, []);
 
   const loadFavorites = async () => {
-    const favs = await getFavorites();
-    setFavorites(favs);
+    try {
+      const favs = await getFavorites();
+      setFavorites(favs);
+    } catch (error) {
+      console.error('Error loading favorites:', error);
+      setFavorites([]);
+    }
   };
 
   useEffect(() => {

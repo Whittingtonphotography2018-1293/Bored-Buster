@@ -1,31 +1,81 @@
-import { supabase, Favorite } from './supabase';
+import { supabase, Favorite, isSupabaseConfigured } from './supabase';
 
 export async function getFavorites(): Promise<string[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      return saved ? JSON.parse(saved) : [];
+    }
 
-  if (!user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    const { data, error } = await supabase
+      .from('favorites')
+      .select('activity')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching favorites:', error);
+      const saved = localStorage.getItem("activityJarFavorites");
+      return saved ? JSON.parse(saved) : [];
+    }
+
+    return data.map((fav: Favorite) => fav.activity);
+  } catch (error) {
+    console.error('Unexpected error in getFavorites:', error);
     const saved = localStorage.getItem("activityJarFavorites");
     return saved ? JSON.parse(saved) : [];
   }
-
-  const { data, error } = await supabase
-    .from('favorites')
-    .select('activity')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching favorites:', error);
-    return [];
-  }
-
-  return data.map((fav: Favorite) => fav.activity);
 }
 
 export async function addFavorite(activity: string, ageGroup: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      if (!favorites.includes(activity)) {
+        favorites.push(activity);
+        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+      }
+      return true;
+    }
 
-  if (!user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      if (!favorites.includes(activity)) {
+        favorites.push(activity);
+        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+      }
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('favorites')
+      .insert([{ user_id: user.id, activity, age_group: ageGroup }]);
+
+    if (error) {
+      console.error('Error adding favorite:', error);
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      if (!favorites.includes(activity)) {
+        favorites.push(activity);
+        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+      }
+      return true;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Unexpected error in addFavorite:', error);
     const saved = localStorage.getItem("activityJarFavorites");
     const favorites = saved ? JSON.parse(saved) : [];
     if (!favorites.includes(activity)) {
@@ -34,42 +84,52 @@ export async function addFavorite(activity: string, ageGroup: string): Promise<b
     }
     return true;
   }
-
-  const { error } = await supabase
-    .from('favorites')
-    .insert([{ user_id: user.id, activity, age_group: ageGroup }]);
-
-  if (error) {
-    console.error('Error adding favorite:', error);
-    return false;
-  }
-
-  return true;
 }
 
 export async function removeFavorite(activity: string): Promise<boolean> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      const updated = favorites.filter((fav: string) => fav !== activity);
+      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      return true;
+    }
 
-  if (!user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      const updated = favorites.filter((fav: string) => fav !== activity);
+      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('activity', activity);
+
+    if (error) {
+      console.error('Error removing favorite:', error);
+      const saved = localStorage.getItem("activityJarFavorites");
+      const favorites = saved ? JSON.parse(saved) : [];
+      const updated = favorites.filter((fav: string) => fav !== activity);
+      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      return true;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Unexpected error in removeFavorite:', error);
     const saved = localStorage.getItem("activityJarFavorites");
     const favorites = saved ? JSON.parse(saved) : [];
     const updated = favorites.filter((fav: string) => fav !== activity);
     localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
     return true;
   }
-
-  const { error } = await supabase
-    .from('favorites')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('activity', activity);
-
-  if (error) {
-    console.error('Error removing favorite:', error);
-    return false;
-  }
-
-  return true;
 }
 
 export async function getRecentActivities(ageGroup: string, limit: number = 20): Promise<string[]> {
@@ -108,28 +168,46 @@ export async function saveActivityHistory(
   ageGroup: string,
   isAiGenerated: boolean
 ): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem("activityJarHistory");
+      const history = saved ? JSON.parse(saved) : [];
+      history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
+      if (history.length > 20) history.pop();
+      localStorage.setItem("activityJarHistory", JSON.stringify(history));
+      return;
+    }
 
-  if (!user) {
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      const saved = localStorage.getItem("activityJarHistory");
+      const history = saved ? JSON.parse(saved) : [];
+      history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
+      if (history.length > 20) history.pop();
+      localStorage.setItem("activityJarHistory", JSON.stringify(history));
+      return;
+    }
+
+    const { error } = await supabase
+      .from('activity_history')
+      .insert([{
+        user_id: user.id,
+        activity,
+        age_group: ageGroup,
+        is_ai_generated: isAiGenerated
+      }]);
+
+    if (error) {
+      console.error('Error saving activity history:', error);
+    }
+  } catch (error) {
+    console.error('Unexpected error in saveActivityHistory:', error);
     const saved = localStorage.getItem("activityJarHistory");
     const history = saved ? JSON.parse(saved) : [];
     history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
     if (history.length > 20) history.pop();
     localStorage.setItem("activityJarHistory", JSON.stringify(history));
-    return;
-  }
-
-  const { error } = await supabase
-    .from('activity_history')
-    .insert([{
-      user_id: user.id,
-      activity,
-      age_group: ageGroup,
-      is_ai_generated: isAiGenerated
-    }]);
-
-  if (error) {
-    console.error('Error saving activity history:', error);
   }
 }
 
@@ -139,69 +217,102 @@ interface ActivityWithId {
 }
 
 async function getShownActivityIds(ageGroup: string): Promise<string[]> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      return saved ? JSON.parse(saved) : [];
+    }
 
-  if (!user) {
-    const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
-    return saved ? JSON.parse(saved) : [];
-  }
+    const { data: { user } } = await supabase.auth.getUser();
 
-  const { data, error } = await supabase
-    .from('shown_activities')
-    .select('activity_id')
-    .eq('user_id', user.id)
-    .eq('age_group', ageGroup);
+    if (!user) {
+      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      return saved ? JSON.parse(saved) : [];
+    }
 
-  if (error) {
-    console.error('Error fetching shown activities:', error);
+    const { data, error } = await supabase
+      .from('shown_activities')
+      .select('activity_id')
+      .eq('user_id', user.id)
+      .eq('age_group', ageGroup);
+
+    if (error) {
+      console.error('Error fetching shown activities:', error);
+      return [];
+    }
+
+    return data.map(item => item.activity_id);
+  } catch (error) {
+    console.error('Unexpected error in getShownActivityIds:', error);
     return [];
   }
-
-  return data.map(item => item.activity_id);
 }
 
 async function markActivityAsShown(activityId: string, ageGroup: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (!user) {
-    const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
-    const shownIds = saved ? JSON.parse(saved) : [];
-    if (!shownIds.includes(activityId)) {
-      shownIds.push(activityId);
-      localStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
+  try {
+    if (!isSupabaseConfigured) {
+      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const shownIds = saved ? JSON.parse(saved) : [];
+      if (!shownIds.includes(activityId)) {
+        shownIds.push(activityId);
+        localStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
+      }
+      return;
     }
-    return;
-  }
 
-  const { error } = await supabase
-    .from('shown_activities')
-    .insert([{
-      user_id: user.id,
-      age_group: ageGroup,
-      activity_id: activityId
-    }]);
+    const { data: { user } } = await supabase.auth.getUser();
 
-  if (error) {
-    console.error('Error marking activity as shown:', error);
+    if (!user) {
+      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const shownIds = saved ? JSON.parse(saved) : [];
+      if (!shownIds.includes(activityId)) {
+        shownIds.push(activityId);
+        localStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
+      }
+      return;
+    }
+
+    const { error } = await supabase
+      .from('shown_activities')
+      .insert([{
+        user_id: user.id,
+        age_group: ageGroup,
+        activity_id: activityId
+      }]);
+
+    if (error) {
+      console.error('Error marking activity as shown:', error);
+    }
+  } catch (error) {
+    console.error('Unexpected error in markActivityAsShown:', error);
   }
 }
 
 async function resetShownActivities(ageGroup: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
+  try {
+    if (!isSupabaseConfigured) {
+      localStorage.removeItem(`shownActivities_${ageGroup}`);
+      return;
+    }
 
-  if (!user) {
-    localStorage.removeItem(`shownActivities_${ageGroup}`);
-    return;
-  }
+    const { data: { user } } = await supabase.auth.getUser();
 
-  const { error } = await supabase
-    .from('shown_activities')
-    .delete()
-    .eq('user_id', user.id)
-    .eq('age_group', ageGroup);
+    if (!user) {
+      localStorage.removeItem(`shownActivities_${ageGroup}`);
+      return;
+    }
 
-  if (error) {
-    console.error('Error resetting shown activities:', error);
+    const { error } = await supabase
+      .from('shown_activities')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('age_group', ageGroup);
+
+    if (error) {
+      console.error('Error resetting shown activities:', error);
+    }
+  } catch (error) {
+    console.error('Unexpected error in resetShownActivities:', error);
   }
 }
 

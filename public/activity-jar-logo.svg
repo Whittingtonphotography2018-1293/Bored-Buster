@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <!-- Jar outline -->
+  <path d="M 150 120 L 150 90 C 150 75 155 70 170 70 L 230 70 C 245 70 250 75 250 90 L 250 120"
+        fill="none" stroke="#E91E63" stroke-width="8" stroke-linecap="round"/>
+
+  <path d="M 140 120 C 140 115 145 110 150 110 L 250 110 C 255 110 260 115 260 120 L 270 140 L 270 320 C 270 340 255 350 235 350 L 165 350 C 145 350 130 340 130 320 L 130 140 Z"
+        fill="none" stroke="#9CCC65" stroke-width="8"/>
+
+  <!-- Fun shapes inside jar -->
+  <circle cx="180" cy="180" r="15" fill="#03A9F4"/>
+  <path d="M 220 160 L 230 175 L 240 160 L 235 190 L 250 180 L 230 195 L 240 210 L 220 195 L 210 210 L 215 180 L 200 190 L 215 175 Z" fill="#FFC107"/>
+  <circle cx="200" cy="240" r="12" fill="#E91E63"/>
+  <circle cx="230" cy="220" r="10" fill="#9CCC65"/>
+  <rect x="160" y="260" width="20" height="20" fill="#FF5722" rx="3"/>
+  <path d="M 210 280 Q 220 270 230 280 T 250 280" fill="none" stroke="#03A9F4" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- Activity Jar Text -->
+  <text x="200" y="380" font-family="Fredoka, Arial, sans-serif" font-size="48" font-weight="700" text-anchor="middle">
+    <tspan fill="#03A9F4">A</tspan><tspan fill="#E91E63">c</tspan><tspan fill="#FFC107">t</tspan><tspan fill="#9CCC65">i</tspan><tspan fill="#03A9F4">v</tspan><tspan fill="#E91E63">i</tspan><tspan fill="#FFC107">t</tspan><tspan fill="#9CCC65">y</tspan>
+  </text>
+  <text x="200" y="420" font-family="Fredoka, Arial, sans-serif" font-size="56" font-weight="700" text-anchor="middle">
+    <tspan fill="#E91E63">J</tspan><tspan fill="#FFC107">a</tspan><tspan fill="#9CCC65">r</tspan>
+  </text>
+
+  <!-- Decorative elements -->
+  <circle cx="320" cy="150" r="8" fill="#FFC107"/>
+  <circle cx="80" cy="200" r="10" fill="#03A9F4"/>
+  <path d="M 340 220 L 350 235 L 360 220 L 355 250 L 370 240 L 350 255 L 360 270 L 340 255 L 330 270 L 335 240 L 320 250 L 335 235 Z" fill="#E91E63"/>
+</svg>

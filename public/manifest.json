@@ -1,0 +1,17 @@
+{
+  "name": "Bored Buster - Fun Ideas for Kids",
+  "short_name": "Bored Buster",
+  "description": "Shake for fun, age-appropriate activity ideas for kids",
+  "icons": [
+    {
+      "src": "/generated-image-1767102612082.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#3B82F6",
+  "background_color": "#ffffff"
+}

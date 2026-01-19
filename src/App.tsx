@@ -176,7 +176,7 @@ export default function ActivityJar() {
 
       <View style={styles.nav}>
         <Image
-          source={require('../public/generated-image-1767102612082.png')}
+          source={{ uri: '/generated-image-1767102612082.png' }}
           style={styles.logo}
           resizeMode="contain"
         />

@@ -26,7 +26,8 @@
       "package": "com.activitycreate.app"
     },
     "web": {
-      "favicon": "./public/generated-image-1767102612082.png"
+      "favicon": "./public/generated-image-1767102612082.png",
+      "bundler": "metro"
     },
     "extra": {
       "SUPABASE_URL": "https://fpohnxajdfdndwiklsaf.supabase.co",

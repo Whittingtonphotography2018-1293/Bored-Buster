@@ -1,10 +1,32 @@
-import { useState, useEffect } from "react";
-import { Menu, Heart, Sparkles, Smartphone } from "lucide-react";
-import { getFavorites, addFavorite, removeFavorite, saveActivityHistory, getRandomActivityFromDatabase } from "./lib/database";
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Image,
+  Modal,
+  ScrollView,
+  SafeAreaView,
+  StatusBar,
+  Dimensions,
+  Animated,
+} from 'react-native';
+import { Accelerometer } from 'expo-sensors';
+import {
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  saveActivityHistory,
+  getRandomActivityFromDatabase,
+} from './lib/database';
+
+const { width } = Dimensions.get('window');
+const BUTTON_SIZE = Math.min(width * 0.7, 280);
 
 export default function ActivityJar() {
-  const [ageGroup, setAgeGroup] = useState("");
-  const [activity, setActivity] = useState("");
+  const [ageGroup, setAgeGroup] = useState('');
+  const [activity, setActivity] = useState('');
   const [isShaking, setIsShaking] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -12,10 +34,16 @@ export default function ActivityJar() {
   const [showActivity, setShowActivity] = useState(false);
   const [lastShake, setLastShake] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [confettiActive, setConfettiActive] = useState(false);
+  const [subscription, setSubscription] = useState<any>(null);
 
   useEffect(() => {
     loadFavorites();
+    setupAccelerometer();
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   const loadFavorites = async () => {
@@ -28,95 +56,60 @@ export default function ActivityJar() {
     }
   };
 
-  useEffect(() => {
-    let lastX = 0;
-    let lastY = 0;
-    let lastZ = 0;
+  const setupAccelerometer = () => {
+    Accelerometer.setUpdateInterval(100);
 
-    const handleMotion = (event: DeviceMotionEvent) => {
-      const acceleration = event.accelerationIncludingGravity;
-      if (!acceleration || !acceleration.x || !acceleration.y || !acceleration.z) return;
-
-      const currentX = acceleration.x;
-      const currentY = acceleration.y;
-      const currentZ = acceleration.z;
-
-      const deltaX = Math.abs(currentX - lastX);
-      const deltaY = Math.abs(currentY - lastY);
-      const deltaZ = Math.abs(currentZ - lastZ);
-
-      const shakeThreshold = 15;
+    const sub = Accelerometer.addListener(accelerometerData => {
+      const { x, y, z } = accelerometerData;
+      const acceleration = Math.sqrt(x * x + y * y + z * z);
+      const threshold = 2.5;
       const now = Date.now();
 
-      if ((deltaX > shakeThreshold || deltaY > shakeThreshold || deltaZ > shakeThreshold) &&
-          now - lastShake > 1000 && !isShaking) {
+      if (acceleration > threshold && now - lastShake > 1000 && !isShaking && ageGroup) {
         setLastShake(now);
         generateActivity();
       }
+    });
 
-      lastX = currentX;
-      lastY = currentY;
-      lastZ = currentZ;
-    };
-
-    const requestPermission = async () => {
-      if (typeof (DeviceMotionEvent as any).requestPermission === 'function') {
-        try {
-          const permission = await (DeviceMotionEvent as any).requestPermission();
-          if (permission === 'granted') {
-            window.addEventListener('devicemotion', handleMotion);
-          }
-        } catch (error) {
-          console.error('Permission denied for device motion');
-        }
-      } else {
-        window.addEventListener('devicemotion', handleMotion);
-      }
-    };
-
-    requestPermission();
-
-    return () => {
-      window.removeEventListener('devicemotion', handleMotion);
-    };
-  }, [lastShake, isShaking, ageGroup]);
+    setSubscription(sub);
+  };
 
   const activities: Record<string, string[]> = {
     toddlers: [
       "Play 'Eye Spy' with colors",
-      "Build a tower with blocks",
-      "Draw with sidewalk chalk",
-      "Have a mini dance party",
-      "Play animal sounds guessing game"
+      'Build a tower with blocks',
+      'Draw with sidewalk chalk',
+      'Have a mini dance party',
+      'Play animal sounds guessing game',
     ],
     preschoolers: [
       "Play 'Would You Rather'",
-      "Create a puppet show",
-      "Go on a backyard scavenger hunt",
-      "Make paper airplanes and race them",
-      "Draw your dream house"
+      'Create a puppet show',
+      'Go on a backyard scavenger hunt',
+      'Make paper airplanes and race them',
+      'Draw your dream house',
     ],
     earlyElementary: [
-      "DIY craft challenge with recycled items",
-      "Invent a new board game",
-      "Write a short story together",
-      "Set up an obstacle course",
-      "Try a 'Minute to Win It' mini game"
+      'DIY craft challenge with recycled items',
+      'Invent a new board game',
+      'Write a short story together',
+      'Set up an obstacle course',
+      "Try a 'Minute to Win It' mini game",
     ],
     lateElementary: [
-      "Create a short film or skit",
-      "Host a cooking challenge",
-      "Make a vision board",
-      "Draw or design a digital comic",
-      "Try a science experiment"
+      'Create a short film or skit',
+      'Host a cooking challenge',
+      'Make a vision board',
+      'Draw or design a digital comic',
+      'Try a science experiment',
     ],
     teens: [
-      "Create a short film or skit",
-      "Host a cooking challenge",
-      "Make a vision board",
-      "Draw or design a digital comic",
-      "Do a 'no-internet' challenge for one hour"
-    ]
+      'Create a short film or skit',
+      'Host a cooking challenge',
+      'Make a vision board',
+      'Draw or design a digital comic',
+      "Do a 'no-internet' challenge for one hour",
+    ],
   };
 
   const generateActivity = async () => {
@@ -126,14 +119,11 @@ export default function ActivityJar() {
     }
     setIsShaking(true);
     setIsGenerating(true);
-    setConfettiActive(true);
-    setTimeout(() => setConfettiActive(false), 1000);
 
     try {
       const dbActivity = await getRandomActivityFromDatabase(ageGroup, []);
 
       if (dbActivity) {
-        console.log('Using database activity:', dbActivity);
         setActivity(dbActivity);
         await saveActivityHistory(dbActivity, ageGroup, false);
         setIsShaking(false);
@@ -176,619 +166,455 @@ export default function ActivityJar() {
   const handleRemoveFavorite = async (item: string) => {
     const success = await removeFavorite(item);
     if (success) {
-      setFavorites(favorites.filter((fav) => fav !== item));
+      setFavorites(favorites.filter(fav => fav !== item));
     }
   };
 
   return (
-    <div
-      style={{
-        fontFamily: "Fredoka, Arial, sans-serif",
-        minHeight: "100vh",
-        backgroundColor: "#ffffff",
-        position: "relative"
-      }}
-    >
-      <nav
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: "20px 24px",
-          maxWidth: "1200px",
-          margin: "0 auto"
-        }}
-      >
-        <img
-          src="/generated-image-1767102612082.png"
-          alt="Bored Buster"
-          style={{
-            height: "50px",
-            width: "auto"
-          }}
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+
+      <View style={styles.nav}>
+        <Image
+          source={require('../public/generated-image-1767102612082.png')}
+          style={styles.logo}
+          resizeMode="contain"
         />
-        <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              display: "flex",
-              alignItems: "center"
-            }}
+        <View style={styles.navButtons}>
+          <TouchableOpacity
+            onPress={() => setShowSettings(!showSettings)}
+            style={styles.navButton}
           >
-            <Menu size={28} color="#2c3e50" />
-          </button>
-          <button
-            onClick={() => setShowFavorites(!showFavorites)}
-            style={{
-              background: "transparent",
-              border: "none",
-              cursor: "pointer",
-              padding: "8px",
-              display: "flex",
-              alignItems: "center",
-              position: "relative"
-            }}
+            <Text style={styles.navIcon}>☰</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setShowFavorites(!showFavorites)}
+            style={styles.navButton}
           >
-            <Heart size={28} color="#2c3e50" fill={favorites.length > 0 ? "#F06292" : "none"} />
+            <Text style={styles.navIcon}>❤️</Text>
             {favorites.length > 0 && (
-              <span
-                style={{
-                  position: "absolute",
-                  top: "2px",
-                  right: "2px",
-                  background: "linear-gradient(135deg, #FF6B6B 0%, #F06292 100%)",
-                  color: "white",
-                  borderRadius: "10px",
-                  fontSize: "10px",
-                  padding: "2px 6px",
-                  fontWeight: "600"
-                }}
-              >
-                {favorites.length}
-              </span>
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{favorites.length}</Text>
+              </View>
             )}
-          </button>
-        </div>
-      </nav>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-      <main
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "calc(100vh - 90px)",
-          padding: "20px",
-          textAlign: "center"
-        }}
-      >
-        <h1
-          style={{
-            fontSize: "clamp(2rem, 6vw, 3rem)",
-            fontWeight: "700",
-            color: "#2c3e50",
-            marginBottom: "16px",
-            lineHeight: "1.2"
-          }}
-        >
-          Bored? Not anymore!
-        </h1>
-        <p
-          style={{
-            fontSize: "clamp(1rem, 3vw, 1.25rem)",
-            color: "#7f8c8d",
-            marginBottom: "60px",
-            fontWeight: "400"
-          }}
-        >
-          AI creates unique activities just for you
-        </p>
+      <View style={styles.main}>
+        <Text style={styles.title}>Bored? Not anymore!</Text>
+        <Text style={styles.subtitle}>AI creates unique activities just for you</Text>
 
-        <div style={{ position: "relative", margin: "40px 0" }}>
-          {confettiActive && (
-            <>
-              {[...Array(20)].map((_, i) => {
-                const colors = ["#FF6B6B", "#FFB84D", "#F06292", "#BA68C8", "#64B5F6", "#FFA726", "#9CCC65", "#66BB6A", "#42A5F5", "#AB47BC"];
-                const angle = (i * 360) / 20;
-                const distance = 150 + Math.random() * 50;
-                const size = 8 + Math.random() * 12;
-                const delay = Math.random() * 0.1;
-
-                return (
-                  <div
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      top: "50%",
-                      left: "50%",
-                      width: `${size}px`,
-                      height: `${size}px`,
-                      borderRadius: Math.random() > 0.5 ? "50%" : "20%",
-                      backgroundColor: colors[Math.floor(Math.random() * colors.length)],
-                      transform: "translate(-50%, -50%)",
-                      animation: `confettiBurst 0.8s ease-out ${delay}s forwards`,
-                      "--angle": `${angle}deg`,
-                      "--distance": `${distance}px`,
-                      zIndex: 10
-                    } as React.CSSProperties}
-                  />
-                );
-              })}
-            </>
-          )}
-
-          <div
-            style={{
-              position: "absolute",
-              top: "-30px",
-              left: "-50px",
-              width: "24px",
-              height: "24px",
-              borderRadius: "50%",
-              backgroundColor: "#FFB84D",
-              animation: "float 3s ease-in-out infinite",
-              boxShadow: "0 4px 12px rgba(255, 184, 77, 0.4)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: "-20px",
-              right: "-40px",
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              backgroundColor: "#FF6B6B",
-              animation: "float 4s ease-in-out infinite 0.5s",
-              boxShadow: "0 4px 12px rgba(255, 107, 107, 0.4)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "-20px",
-              left: "-30px",
-              width: "28px",
-              height: "28px",
-              borderRadius: "50%",
-              backgroundColor: "#66BB6A",
-              animation: "float 3.5s ease-in-out infinite 1s",
-              boxShadow: "0 4px 12px rgba(102, 187, 106, 0.4)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              bottom: "-30px",
-              right: "-50px",
-              width: "20px",
-              height: "20px",
-              borderRadius: "50%",
-              backgroundColor: "#BA68C8",
-              animation: "float 4.5s ease-in-out infinite 1.5s",
-              boxShadow: "0 4px 12px rgba(186, 104, 200, 0.4)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "-60px",
-              width: "18px",
-              height: "18px",
-              borderRadius: "50%",
-              backgroundColor: "#64B5F6",
-              animation: "float 3.2s ease-in-out infinite 0.8s",
-              boxShadow: "0 4px 12px rgba(100, 181, 246, 0.4)"
-            }}
-          />
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              right: "-55px",
-              width: "22px",
-              height: "22px",
-              borderRadius: "50%",
-              backgroundColor: "#F06292",
-              animation: "float 3.8s ease-in-out infinite 1.2s",
-              boxShadow: "0 4px 12px rgba(240, 98, 146, 0.4)"
-            }}
-          />
-
-          <button
-            onClick={generateActivity}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            onPress={generateActivity}
             disabled={isShaking}
-            style={{
-              width: "280px",
-              height: "280px",
-              borderRadius: "50%",
-              background: confettiActive
-                ? "radial-gradient(circle, #FFD700 0%, #FF6B6B 20%, #FFB84D 40%, #F06292 60%, #BA68C8 80%, #64B5F6 100%)"
-                : "linear-gradient(135deg, #FF6B6B 0%, #FFB84D 25%, #F06292 50%, #BA68C8 75%, #64B5F6 100%)",
-              border: "8px solid white",
-              cursor: isShaking ? "default" : "pointer",
-              boxShadow: confettiActive
-                ? "0 0 80px rgba(255, 107, 107, 0.8), 0 0 120px rgba(255, 184, 77, 0.6), inset 0 0 60px rgba(255, 255, 255, 0.3)"
-                : "0 20px 60px rgba(255, 107, 107, 0.4), 0 8px 20px rgba(240, 98, 146, 0.3)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "12px",
-              transition: "all 0.3s ease",
-              transform: confettiActive ? "scale(1.05)" : (isShaking ? "scale(0.95)" : "scale(1)"),
-              animation: isShaking ? "shake 0.6s ease" : "none",
-              position: "relative",
-              overflow: "visible"
-            }}
-            onMouseDown={(e) => {
-              if (!isShaking) {
-                e.currentTarget.style.transform = "scale(0.92)";
-                e.currentTarget.style.boxShadow = "0 10px 40px rgba(255, 107, 107, 0.6), 0 4px 12px rgba(240, 98, 146, 0.4)";
-              }
-            }}
-            onMouseUp={(e) => {
-              if (!isShaking) {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 20px 60px rgba(255, 107, 107, 0.4), 0 8px 20px rgba(240, 98, 146, 0.3)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!isShaking) {
-                e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 20px 60px rgba(255, 107, 107, 0.4), 0 8px 20px rgba(240, 98, 146, 0.3)";
-              }
-            }}
+            style={[
+              styles.shakeButton,
+              isShaking && styles.shakeButtonDisabled,
+            ]}
           >
-            <Sparkles size={48} color="white" />
-            <div>
-              <div
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "700",
-                  color: "white",
-                  marginBottom: "4px"
-                }}
-              >
-                {isGenerating ? "Thinking..." : "Shake!"}
-              </div>
-              <div
-                style={{
-                  fontSize: "1rem",
-                  color: "rgba(255, 255, 255, 0.9)",
-                  fontWeight: "400"
-                }}
-              >
-                {isGenerating ? "AI is creating" : "for a fun idea"}
-              </div>
-            </div>
-          </button>
-        </div>
+            <Text style={styles.sparkleIcon}>✨</Text>
+            <Text style={styles.shakeButtonText}>
+              {isGenerating ? 'Thinking...' : 'Shake!'}
+            </Text>
+            <Text style={styles.shakeButtonSubtext}>
+              {isGenerating ? 'AI is creating' : 'for a fun idea'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginTop: "40px",
-            color: "#7f8c8d",
-            fontSize: "0.95rem"
-          }}
-        >
-          <Smartphone size={18} />
-          <span>You can also shake your phone!</span>
-        </div>
-      </main>
+        <View style={styles.hintContainer}>
+          <Text style={styles.phoneIcon}>📱</Text>
+          <Text style={styles.hintText}>You can also shake your phone!</Text>
+        </View>
+      </View>
 
-      {showSettings && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px"
-          }}
-          onClick={() => setShowSettings(false)}
+      <Modal
+        visible={showSettings}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setShowSettings(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowSettings(false)}
         >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "20px",
-              padding: "32px",
-              maxWidth: "400px",
-              width: "100%",
-              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)"
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: "24px", fontSize: "1.5rem", color: "#2c3e50" }}>
-              Select Age Group
-            </h2>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Age Group</Text>
+            <ScrollView style={styles.optionsContainer}>
               {[
-                { value: "toddlers", label: "Ages 1–3 (Toddlers)" },
-                { value: "preschoolers", label: "Ages 3–5 (Preschoolers)" },
-                { value: "earlyElementary", label: "Ages 5–8 (Early Elementary)" },
-                { value: "lateElementary", label: "Ages 8–12 (Late Elementary)" },
-                { value: "teens", label: "Ages 13+ (Teens)" }
-              ].map((option) => (
-                <button
+                { value: 'toddlers', label: 'Ages 1–3 (Toddlers)' },
+                { value: 'preschoolers', label: 'Ages 3–5 (Preschoolers)' },
+                { value: 'earlyElementary', label: 'Ages 5–8 (Early Elementary)' },
+                { value: 'lateElementary', label: 'Ages 8–12 (Late Elementary)' },
+                { value: 'teens', label: 'Ages 13+ (Teens)' },
+              ].map(option => (
+                <TouchableOpacity
                   key={option.value}
-                  onClick={() => {
+                  onPress={() => {
                     setAgeGroup(option.value);
                     setShowSettings(false);
                   }}
-                  style={{
-                    padding: "16px",
-                    borderRadius: "12px",
-                    border: ageGroup === option.value ? "2px solid #F06292" : "2px solid #e0e0e0",
-                    backgroundColor: ageGroup === option.value ? "#fce4ec" : "white",
-                    cursor: "pointer",
-                    fontSize: "1rem",
-                    fontWeight: ageGroup === option.value ? "600" : "400",
-                    color: "#2c3e50",
-                    transition: "all 0.2s ease"
-                  }}
+                  style={[
+                    styles.option,
+                    ageGroup === option.value && styles.optionSelected,
+                  ]}
                 >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowSettings(false)}
-              style={{
-                marginTop: "24px",
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "none",
-                backgroundColor: "#f5f5f5",
-                cursor: "pointer",
-                fontSize: "1rem",
-                fontWeight: "500",
-                color: "#7f8c8d"
-              }}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-
-      {showActivity && activity && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px",
-            animation: "fadeIn 0.3s ease"
-          }}
-          onClick={() => setShowActivity(false)}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "20px",
-              padding: "32px",
-              maxWidth: "500px",
-              width: "100%",
-              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)",
-              animation: "slideUp 0.3s ease"
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: "16px", fontSize: "1.5rem", color: "#2c3e50" }}>
-              Your Activity Idea
-            </h2>
-            <p
-              style={{
-                fontSize: "1.25rem",
-                color: "#34495e",
-                lineHeight: "1.6",
-                marginBottom: "24px"
-              }}
-            >
-              {activity}
-            </p>
-            <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-              <button
-                onClick={addToFavorites}
-                disabled={favorites.includes(activity)}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: "24px",
-                  border: "none",
-                  background: favorites.includes(activity) ? "#e0e0e0" : "linear-gradient(135deg, #FF6B6B 0%, #F06292 100%)",
-                  color: "white",
-                  cursor: favorites.includes(activity) ? "not-allowed" : "pointer",
-                  fontSize: "1rem",
-                  fontWeight: "500",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px"
-                }}
-              >
-                <Heart size={18} fill={favorites.includes(activity) ? "white" : "none"} />
-                {favorites.includes(activity) ? "Saved" : "Save"}
-              </button>
-              <button
-                onClick={generateActivity}
-                style={{
-                  padding: "12px 24px",
-                  borderRadius: "24px",
-                  border: "2px solid #F06292",
-                  backgroundColor: "white",
-                  color: "#F06292",
-                  cursor: "pointer",
-                  fontSize: "1rem",
-                  fontWeight: "500"
-                }}
-              >
-                Get Another
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFavorites && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-            padding: "20px"
-          }}
-          onClick={() => setShowFavorites(false)}
-        >
-          <div
-            style={{
-              backgroundColor: "white",
-              borderRadius: "20px",
-              padding: "32px",
-              maxWidth: "500px",
-              width: "100%",
-              maxHeight: "80vh",
-              overflow: "auto",
-              boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2)"
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ marginBottom: "24px", fontSize: "1.5rem", color: "#2c3e50" }}>
-              Your Favorites
-            </h2>
-            {favorites.length === 0 ? (
-              <p style={{ color: "#7f8c8d", textAlign: "center", padding: "40px 0" }}>
-                No favorites yet. Generate activities and save the ones you love!
-              </p>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {favorites.map((item, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: "16px",
-                      borderRadius: "12px",
-                      backgroundColor: "#fafafa",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: "12px"
-                    }}
+                  <Text
+                    style={[
+                      styles.optionText,
+                      ageGroup === option.value && styles.optionTextSelected,
+                    ]}
                   >
-                    <span style={{ flex: 1, color: "#34495e", fontSize: "1rem" }}>{item}</span>
-                    <button
-                      onClick={() => handleRemoveFavorite(item)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        cursor: "pointer",
-                        padding: "8px",
-                        color: "#95a5a6",
-                        fontSize: "1.2rem",
-                        lineHeight: "1"
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => setShowFavorites(false)}
-              style={{
-                marginTop: "24px",
-                width: "100%",
-                padding: "12px",
-                borderRadius: "12px",
-                border: "none",
-                backgroundColor: "#f5f5f5",
-                cursor: "pointer",
-                fontSize: "1rem",
-                fontWeight: "500",
-                color: "#7f8c8d"
-              }}
+                    {option.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setShowSettings(false)}
+              style={styles.closeButton}
             >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: rotate(0deg) scale(0.95); }
-          25% { transform: rotate(5deg) scale(0.95); }
-          50% { transform: rotate(-5deg) scale(0.95); }
-          75% { transform: rotate(5deg) scale(0.95); }
-        }
+      <Modal
+        visible={showActivity}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowActivity(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowActivity(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Your Activity Idea</Text>
+            <Text style={styles.activityText}>{activity}</Text>
+            <View style={styles.activityButtons}>
+              <TouchableOpacity
+                onPress={addToFavorites}
+                disabled={favorites.includes(activity)}
+                style={[
+                  styles.favoriteButton,
+                  favorites.includes(activity) && styles.favoriteButtonDisabled,
+                ]}
+              >
+                <Text style={styles.favoriteButtonText}>
+                  {favorites.includes(activity) ? 'Saved' : 'Save'} ❤️
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowActivity(false);
+                  setTimeout(generateActivity, 300);
+                }}
+                style={styles.anotherButton}
+              >
+                <Text style={styles.anotherButtonText}>Get Another</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-20px); }
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes confettiBurst {
-          0% {
-            transform: translate(-50%, -50%) scale(0) rotate(0deg);
-            opacity: 1;
-          }
-          50% {
-            opacity: 1;
-          }
-          100% {
-            transform: translate(
-              calc(-50% + cos(var(--angle)) * var(--distance)),
-              calc(-50% + sin(var(--angle)) * var(--distance))
-            ) scale(1) rotate(720deg);
-            opacity: 0;
-          }
-        }
-      `}</style>
-    </div>
+      <Modal
+        visible={showFavorites}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowFavorites(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowFavorites(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Your Favorites</Text>
+            {favorites.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                  No favorites yet. Generate activities and save the ones you love!
+                </Text>
+              </View>
+            ) : (
+              <ScrollView style={styles.favoritesContainer}>
+                {favorites.map((item, i) => (
+                  <View key={i} style={styles.favoriteItem}>
+                    <Text style={styles.favoriteItemText}>{item}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveFavorite(item)}
+                      style={styles.removeButton}
+                    >
+                      <Text style={styles.removeButtonText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+            <TouchableOpacity
+              onPress={() => setShowFavorites(false)}
+              style={styles.closeButton}
+            >
+              <Text style={styles.closeButtonText}>Close</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  nav: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+  },
+  logo: {
+    height: 50,
+    width: 120,
+  },
+  navButtons: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  navButton: {
+    padding: 8,
+    position: 'relative',
+  },
+  navIcon: {
+    fontSize: 28,
+    color: '#2c3e50',
+  },
+  badge: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    backgroundColor: '#F06292',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  main: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  title: {
+    fontSize: 36,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#7f8c8d',
+    marginBottom: 60,
+    textAlign: 'center',
+  },
+  buttonContainer: {
+    marginVertical: 40,
+  },
+  shakeButton: {
+    width: BUTTON_SIZE,
+    height: BUTTON_SIZE,
+    borderRadius: BUTTON_SIZE / 2,
+    backgroundColor: '#FF6B6B',
+    borderWidth: 8,
+    borderColor: 'white',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#FF6B6B',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.4,
+    shadowRadius: 60,
+    elevation: 20,
+  },
+  shakeButtonDisabled: {
+    opacity: 0.7,
+  },
+  sparkleIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  shakeButtonText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: 'white',
+    marginBottom: 4,
+  },
+  shakeButtonSubtext: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 40,
+  },
+  phoneIcon: {
+    fontSize: 18,
+  },
+  hintText: {
+    color: '#7f8c8d',
+    fontSize: 15,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 32,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 40,
+    elevation: 10,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#2c3e50',
+    marginBottom: 24,
+  },
+  optionsContainer: {
+    maxHeight: 400,
+  },
+  option: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    backgroundColor: 'white',
+    marginBottom: 12,
+  },
+  optionSelected: {
+    borderColor: '#F06292',
+    backgroundColor: '#fce4ec',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#2c3e50',
+  },
+  optionTextSelected: {
+    fontWeight: '600',
+  },
+  closeButton: {
+    marginTop: 24,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+  },
+  closeButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#7f8c8d',
+  },
+  activityText: {
+    fontSize: 20,
+    color: '#34495e',
+    lineHeight: 32,
+    marginBottom: 24,
+  },
+  activityButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'center',
+  },
+  favoriteButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    backgroundColor: '#FF6B6B',
+    flex: 1,
+    alignItems: 'center',
+  },
+  favoriteButtonDisabled: {
+    backgroundColor: '#e0e0e0',
+  },
+  favoriteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  anotherButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#F06292',
+    backgroundColor: 'white',
+    flex: 1,
+    alignItems: 'center',
+  },
+  anotherButtonText: {
+    color: '#F06292',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyContainer: {
+    paddingVertical: 40,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#7f8c8d',
+    textAlign: 'center',
+    fontSize: 16,
+  },
+  favoritesContainer: {
+    maxHeight: 400,
+  },
+  favoriteItem: {
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#fafafa',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  favoriteItemText: {
+    flex: 1,
+    color: '#34495e',
+    fontSize: 16,
+  },
+  removeButton: {
+    padding: 8,
+  },
+  removeButtonText: {
+    color: '#95a5a6',
+    fontSize: 24,
+    lineHeight: 24,
+  },
+});

@@ -1,16 +1,17 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase, Favorite, isSupabaseConfigured } from './supabase';
 
 export async function getFavorites(): Promise<string[]> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       return saved ? JSON.parse(saved) : [];
     }
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       return saved ? JSON.parse(saved) : [];
     }
 
@@ -22,14 +23,14 @@ export async function getFavorites(): Promise<string[]> {
 
     if (error) {
       console.error('Error fetching favorites:', error);
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       return saved ? JSON.parse(saved) : [];
     }
 
-    return data.map((fav: Favorite) => fav.activity);
+    return data.map((fav: { activity: string }) => fav.activity);
   } catch (error) {
     console.error('Unexpected error in getFavorites:', error);
-    const saved = localStorage.getItem("activityJarFavorites");
+    const saved = await AsyncStorage.getItem("activityJarFavorites");
     return saved ? JSON.parse(saved) : [];
   }
 }
@@ -37,11 +38,11 @@ export async function getFavorites(): Promise<string[]> {
 export async function addFavorite(activity: string, ageGroup: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       if (!favorites.includes(activity)) {
         favorites.push(activity);
-        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+        await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
       }
       return true;
     }
@@ -49,11 +50,11 @@ export async function addFavorite(activity: string, ageGroup: string): Promise<b
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       if (!favorites.includes(activity)) {
         favorites.push(activity);
-        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+        await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
       }
       return true;
     }
@@ -64,11 +65,11 @@ export async function addFavorite(activity: string, ageGroup: string): Promise<b
 
     if (error) {
       console.error('Error adding favorite:', error);
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       if (!favorites.includes(activity)) {
         favorites.push(activity);
-        localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+        await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
       }
       return true;
     }
@@ -76,11 +77,11 @@ export async function addFavorite(activity: string, ageGroup: string): Promise<b
     return true;
   } catch (error) {
     console.error('Unexpected error in addFavorite:', error);
-    const saved = localStorage.getItem("activityJarFavorites");
+    const saved = await AsyncStorage.getItem("activityJarFavorites");
     const favorites = saved ? JSON.parse(saved) : [];
     if (!favorites.includes(activity)) {
       favorites.push(activity);
-      localStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
+      await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(favorites));
     }
     return true;
   }
@@ -89,20 +90,20 @@ export async function addFavorite(activity: string, ageGroup: string): Promise<b
 export async function removeFavorite(activity: string): Promise<boolean> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       const updated = favorites.filter((fav: string) => fav !== activity);
-      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(updated));
       return true;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       const updated = favorites.filter((fav: string) => fav !== activity);
-      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(updated));
       return true;
     }
 
@@ -114,20 +115,20 @@ export async function removeFavorite(activity: string): Promise<boolean> {
 
     if (error) {
       console.error('Error removing favorite:', error);
-      const saved = localStorage.getItem("activityJarFavorites");
+      const saved = await AsyncStorage.getItem("activityJarFavorites");
       const favorites = saved ? JSON.parse(saved) : [];
       const updated = favorites.filter((fav: string) => fav !== activity);
-      localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+      await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(updated));
       return true;
     }
 
     return true;
   } catch (error) {
     console.error('Unexpected error in removeFavorite:', error);
-    const saved = localStorage.getItem("activityJarFavorites");
+    const saved = await AsyncStorage.getItem("activityJarFavorites");
     const favorites = saved ? JSON.parse(saved) : [];
     const updated = favorites.filter((fav: string) => fav !== activity);
-    localStorage.setItem("activityJarFavorites", JSON.stringify(updated));
+    await AsyncStorage.setItem("activityJarFavorites", JSON.stringify(updated));
     return true;
   }
 }
@@ -136,7 +137,7 @@ export async function getRecentActivities(ageGroup: string, limit: number = 20):
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    const saved = localStorage.getItem("activityJarHistory");
+    const saved = await AsyncStorage.getItem("activityJarHistory");
     const history = saved ? JSON.parse(saved) : [];
     const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
     const recentHistory = history.filter((item: any) =>
@@ -170,22 +171,22 @@ export async function saveActivityHistory(
 ): Promise<void> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem("activityJarHistory");
+      const saved = await AsyncStorage.getItem("activityJarHistory");
       const history = saved ? JSON.parse(saved) : [];
       history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
       if (history.length > 20) history.pop();
-      localStorage.setItem("activityJarHistory", JSON.stringify(history));
+      await AsyncStorage.setItem("activityJarHistory", JSON.stringify(history));
       return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem("activityJarHistory");
+      const saved = await AsyncStorage.getItem("activityJarHistory");
       const history = saved ? JSON.parse(saved) : [];
       history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
       if (history.length > 20) history.pop();
-      localStorage.setItem("activityJarHistory", JSON.stringify(history));
+      await AsyncStorage.setItem("activityJarHistory", JSON.stringify(history));
       return;
     }
 
@@ -203,11 +204,11 @@ export async function saveActivityHistory(
     }
   } catch (error) {
     console.error('Unexpected error in saveActivityHistory:', error);
-    const saved = localStorage.getItem("activityJarHistory");
+    const saved = await AsyncStorage.getItem("activityJarHistory");
     const history = saved ? JSON.parse(saved) : [];
     history.unshift({ activity, ageGroup, isAiGenerated, timestamp: Date.now() });
     if (history.length > 20) history.pop();
-    localStorage.setItem("activityJarHistory", JSON.stringify(history));
+    await AsyncStorage.setItem("activityJarHistory", JSON.stringify(history));
   }
 }
 
@@ -219,14 +220,14 @@ interface ActivityWithId {
 async function getShownActivityIds(ageGroup: string): Promise<string[]> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const saved = await AsyncStorage.getItem(`shownActivities_${ageGroup}`);
       return saved ? JSON.parse(saved) : [];
     }
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const saved = await AsyncStorage.getItem(`shownActivities_${ageGroup}`);
       return saved ? JSON.parse(saved) : [];
     }
 
@@ -251,11 +252,11 @@ async function getShownActivityIds(ageGroup: string): Promise<string[]> {
 async function markActivityAsShown(activityId: string, ageGroup: string): Promise<void> {
   try {
     if (!isSupabaseConfigured) {
-      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const saved = await AsyncStorage.getItem(`shownActivities_${ageGroup}`);
       const shownIds = saved ? JSON.parse(saved) : [];
       if (!shownIds.includes(activityId)) {
         shownIds.push(activityId);
-        localStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
+        await AsyncStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
       }
       return;
     }
@@ -263,11 +264,11 @@ async function markActivityAsShown(activityId: string, ageGroup: string): Promis
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      const saved = localStorage.getItem(`shownActivities_${ageGroup}`);
+      const saved = await AsyncStorage.getItem(`shownActivities_${ageGroup}`);
       const shownIds = saved ? JSON.parse(saved) : [];
       if (!shownIds.includes(activityId)) {
         shownIds.push(activityId);
-        localStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
+        await AsyncStorage.setItem(`shownActivities_${ageGroup}`, JSON.stringify(shownIds));
       }
       return;
     }
@@ -291,14 +292,14 @@ async function markActivityAsShown(activityId: string, ageGroup: string): Promis
 async function resetShownActivities(ageGroup: string): Promise<void> {
   try {
     if (!isSupabaseConfigured) {
-      localStorage.removeItem(`shownActivities_${ageGroup}`);
+      await AsyncStorage.removeItem(`shownActivities_${ageGroup}`);
       return;
     }
 
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      localStorage.removeItem(`shownActivities_${ageGroup}`);
+      await AsyncStorage.removeItem(`shownActivities_${ageGroup}`);
       return;
     }
 

@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Activity Create",
+    "slug": "activity-create",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./public/generated-image-1767102612082.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./public/generated-image-1767102612082.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.activitycreate.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./public/generated-image-1767102612082.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.activitycreate.app"
+    },
+    "web": {
+      "favicon": "./public/generated-image-1767102612082.png"
+    },
+    "extra": {
+      "SUPABASE_URL": "https://fpohnxajdfdndwiklsaf.supabase.co",
+      "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZwb2hueGFqZGZkbmR3aWtsc2FmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU5ODcwMDcsImV4cCI6MjA4MTU2MzAwN30.BoLW96_WNOLcAd9OYncyueU0KJPsaZ-h7yEbJkLl9t0"
+    }
+  }
+}

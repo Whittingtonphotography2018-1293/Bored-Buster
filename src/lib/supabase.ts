@@ -1,14 +1,45 @@
 import 'react-native-url-polyfill/auto';
 import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
-const supabaseUrl = Constants.expoConfig?.extra?.SUPABASE_URL || '';
-const supabaseAnonKey = Constants.expoConfig?.extra?.SUPABASE_ANON_KEY || '';
+const getEnvVar = (key: string): string => {
+  if (Platform.OS === 'web') {
+    return (import.meta as any).env?.[key] || '';
+  } else {
+    try {
+      const Constants = require('expo-constants').default;
+      return Constants.expoConfig?.extra?.[key.replace('VITE_', '')] || '';
+    } catch {
+      return '';
+    }
+  }
+};
+
+const supabaseUrl = getEnvVar('VITE_SUPABASE_URL');
+const supabaseAnonKey = getEnvVar('VITE_SUPABASE_ANON_KEY');
+
+const getStorage = () => {
+  if (Platform.OS === 'web') {
+    return {
+      getItem: (key: string) => {
+        return Promise.resolve(localStorage.getItem(key));
+      },
+      setItem: (key: string, value: string) => {
+        return Promise.resolve(localStorage.setItem(key, value));
+      },
+      removeItem: (key: string) => {
+        return Promise.resolve(localStorage.removeItem(key));
+      },
+    };
+  } else {
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    return AsyncStorage;
+  }
+};
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    storage: AsyncStorage,
+    storage: getStorage(),
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,

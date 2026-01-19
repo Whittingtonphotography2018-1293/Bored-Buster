@@ -11,8 +11,8 @@ import {
   StatusBar,
   Dimensions,
   Animated,
+  Platform,
 } from 'react-native';
-import { Accelerometer } from 'expo-sensors';
 import {
   getFavorites,
   addFavorite,
@@ -56,22 +56,31 @@ export default function ActivityJar() {
     }
   };
 
-  const setupAccelerometer = () => {
-    Accelerometer.setUpdateInterval(100);
+  const setupAccelerometer = async () => {
+    if (Platform.OS === 'web') {
+      return;
+    }
 
-    const sub = Accelerometer.addListener(accelerometerData => {
-      const { x, y, z } = accelerometerData;
-      const acceleration = Math.sqrt(x * x + y * y + z * z);
-      const threshold = 2.5;
-      const now = Date.now();
+    try {
+      const { Accelerometer } = await import('expo-sensors');
+      Accelerometer.setUpdateInterval(100);
 
-      if (acceleration > threshold && now - lastShake > 1000 && !isShaking && ageGroup) {
-        setLastShake(now);
-        generateActivity();
-      }
-    });
+      const sub = Accelerometer.addListener(accelerometerData => {
+        const { x, y, z } = accelerometerData;
+        const acceleration = Math.sqrt(x * x + y * y + z * z);
+        const threshold = 2.5;
+        const now = Date.now();
 
-    setSubscription(sub);
+        if (acceleration > threshold && now - lastShake > 1000 && !isShaking && ageGroup) {
+          setLastShake(now);
+          generateActivity();
+        }
+      });
+
+      setSubscription(sub);
+    } catch (error) {
+      console.log('Accelerometer not available on this platform');
+    }
   };
 
   const activities: Record<string, string[]> = {
